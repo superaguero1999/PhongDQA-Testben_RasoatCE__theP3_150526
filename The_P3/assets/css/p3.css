@@ -1,6 +1,8 @@
 ﻿.p3-panel h1 {
   margin-top: 0;
   margin-bottom: 0.75rem;
+  /* .panel h1 = 1.35rem (base.css); +1 đơn vị 0.25rem */
+  font-size: calc(1.35rem + 0.25rem);
 }
 
 .p3-panel .p3-wrap {
@@ -209,12 +211,12 @@
   box-sizing: border-box;
 }
 
-/* Hạng mục + Tiêu chuẩn: / 1.2 so với .p3-cell-long 220px */
+/* Hạng mục + Tiêu chuẩn: so với .p3-cell-long 220px — /1.2 rồi /1.1 (mỗi cột hẹp thêm 1.1 lần) */
 .p3-table th.p3-col-hang-muc,
 .p3-table td.p3-col-hang-muc.p3-cell-long,
 .p3-table th.p3-col-tieu-chuan,
 .p3-table td.p3-col-tieu-chuan.p3-cell-long {
-  max-width: calc(220px / 1.2);
+  max-width: calc(220px / 1.2 / 1.1);
 }
 
 .p3-table th.p3-col-cong-chuan-h0,
@@ -536,9 +538,112 @@ select.p3-pic-select {
 
 .p3-filter-actions {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  max-width: 12rem;
+}
+
+/* Liên kết văn bản — không dạng ô nút */
+#p3-help-open.p3-help-link,
+.p3-help-link {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.1rem 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font: inherit;
+  font-size: 0.86rem;
+  color: #4338ca;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  text-align: left;
+}
+
+#p3-help-open.p3-help-link:hover:not(:disabled),
+.p3-help-link:hover:not(:disabled) {
+  color: #312e81;
+  background: none;
+}
+
+#p3-help-open.p3-help-link:focus-visible,
+.p3-help-link:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.p3-guide-layer {
+  z-index: 100003;
+}
+
+.p3-guide-card {
+  width: min(720px, 96vw);
+  max-height: min(85vh, 85dvh);
+  overflow: auto;
+}
+
+.p3-guide-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.35rem;
+  flex-shrink: 0;
+}
+
+.p3-guide-head h3 {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  padding-right: 0.25rem;
+}
+
+.p3-guide-close {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.p3-guide-lead {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.p3-guide-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.p3-guide-table th,
+.p3-guide-table td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.p3-guide-table th {
+  background: rgba(15, 23, 42, 0.06);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.p3-guide-table th:first-child,
+.p3-guide-table td:first-child {
+  width: 6.5%;
+  max-width: 5.5rem;
+  box-sizing: border-box;
 }
 
 /* Modal thống kê PIC + pop-up chi tiết */
@@ -741,4 +846,29 @@ select.p3-pic-select {
 
 .p3-stats-pic-table tbody td:nth-child(5) .p3-stats-cell-btn {
   font-weight: 700;
+}
+
+/* Trạng thái chờ lần tải đầu (trước khi có bảng) */
+.p3-loading-banner {
+  padding: 1.25rem 1.1rem;
+  margin: 0.25rem 0 0;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  max-width: 42rem;
+}
+
+.p3-loading-text {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.p3-loading-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #64748b;
 }

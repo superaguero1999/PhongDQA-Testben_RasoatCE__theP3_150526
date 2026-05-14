@@ -39,7 +39,9 @@ function isLikelyNetworkFailure(err) {
 function mapFetchError(err) {
   if (isLikelyNetworkFailure(err)) {
     return new Error(
-      "Không kết nối được tới Worker (mạng chập chờn hoặc máy chủ tạm nghỉ). Hãy thử lại sau vài giây."
+      "Không gọi được API Worker P3 (trình duyệt thường chặn CORS nếu Worker chưa cho phép domain GitHub Pages, hoặc mạng / máy chủ lỗi). " +
+        "Hãy deploy lại Worker (file p3-worker.js mới) hoặc trong Cloudflare đặt ALLOWED_ORIGIN=* hoặc thêm đúng URL trang (vd https://superaguero1999.github.io). " +
+        "Sau đó tải lại trang."
     );
   }
   return err instanceof Error ? err : new Error(String(err || "Lỗi không xác định"));

@@ -86,7 +86,7 @@ const P3_FILTER_FIELDS = [
   { value: "congChuanMoi", label: "Công chuẩn (mới)", scope: "parent" },
   { value: "p3Avg", label: "P3 trung bình", scope: "parent" },
   { value: "runningTot", label: "Running / Tổng lượt", scope: "parent" },
-  { value: "pic", label: "PIC (lượt)", scope: "instance" },
+  { value: "pic", label: "PIC", scope: "instance" },
   { value: "t1", label: "T1", scope: "instance" },
   { value: "t2", label: "T2", scope: "instance" },
   { value: "congChuanCaNhan", label: "Công chuẩn cá nhân", scope: "instance" },
@@ -443,7 +443,13 @@ function buildMainRow(item, expanded) {
 function buildInstanceRows(item, f1, v1, f2, v2) {
   const list = p3FilterInstancesArray(item, f1, v1, f2, v2);
   if (!list.length) {
-    return '<tr><td colspan="9" class="p3-sub-empty">Không có lượt thỏa bộ lọc hiện tại.</td></tr>';
+    const raw = Array.isArray(item.instances) ? item.instances : [];
+    const filtersOn = p3FiltersEffectivelyOn(f1, v1, f2, v2);
+    const emptyMsg =
+      filtersOn && raw.length
+        ? "Không có lượt thoả bộ lọc hiện tại."
+        : "Không có lượt triển khai hiện tại.";
+    return `<tr><td colspan="9" class="p3-sub-empty">${emptyMsg}</td></tr>`;
   }
   return list
     .map((ins) => {
@@ -512,6 +518,7 @@ function buildFiltersSectionHtml(fs) {
     "</div>" +
     '<div class="p3-filter-actions">' +
     '<button type="button" class="p3-btn p3-btn-end" id="p3-filter-clear">Xóa lọc</button>' +
+    '<button type="button" class="p3-help-link" id="p3-help-open" aria-haspopup="dialog">Hướng dẫn</button>' +
     "</div>" +
     "</div>"
   );
@@ -643,6 +650,50 @@ function closeActionModal() {
   m.style.display = "none";
 }
 
+function ensureP3GuideModal() {
+  let m = document.getElementById("p3-guide-modal");
+  if (m) return m;
+  m = document.createElement("div");
+  m.id = "p3-guide-modal";
+  m.className = "p3-modal p3-guide-layer";
+  m.style.display = "none";
+  m.setAttribute("role", "dialog");
+  m.setAttribute("aria-modal", "true");
+  m.setAttribute("aria-labelledby", "p3-guide-title");
+  m.innerHTML =
+    '<div class="p3-modal-bg" data-close="1"></div>' +
+    '<div class="p3-modal-card p3-guide-card">' +
+    '<div class="p3-guide-head">' +
+    '<h3 id="p3-guide-title">Hướng dẫn triển khai P3</h3>' +
+    '<button type="button" class="p3-btn p3-btn-end p3-guide-close" data-close="1">Đóng</button>' +
+    "</div>" +
+    '<p class="p3-guide-lead">Tóm tắt thao tác chính — chi tiết cấu hình xem tài liệu Worker / Noco.mkis01ab23.DB.</p>' +
+    '<table class="p3-guide-table">' +
+    "<thead><tr><th>Bước</th><th>Việc cần làm</th></tr></thead><tbody>" +
+    "<tr><td>Triển khai mới</td><td>Bấm <strong>[+] Triển khai mới</strong> trên hạng mục → chọn PIC (hoặc nhập tay nếu được phép) → PIN 4–6 số hoặc mật khẩu master → chọn ảnh chứng từ → <strong>Xác nhận</strong>. Một PIC chỉ một lượt <em>Running</em> trên cùng hạng mục.</td></tr>" +
+    "<tr><td>Kết thúc lượt</td><td>Khi lượt đang <em>Running</em>, bấm <strong>Kết thúc</strong> → nhập PIN + ảnh; hệ thống ghi T2, tỷ lệ P3 và công chuẩn cá nhân.</td></tr>" +
+    "<tr><td>Lọc bảng</td><td><strong>Lọc 1</strong> và <strong>Lọc 2</strong> áp dụng đồng thời (AND). Để trống giá trị một tầng thì tầng đó không lọc. <strong>Xóa lọc</strong> đặt lại cả hai.</td></tr>" +
+    "<tr><td>Làm mới</td><td>Dữ liệu tự tải theo chu kỳ; nếu báo lỗi Worker/mạng, đợi vài giây hoặc F5 trang.</td></tr>" +
+    "<tr><td>Thống kê PIC</td><td>Nút <strong>Thống kê P3 theo PIC</strong> — xem tổng hợp theo tháng (cần cấu hình roster PIC trên NocoDB).</td></tr>" +
+    "</tbody></table>" +
+    "</div>";
+  m.addEventListener("click", (e) => {
+    if (e.target instanceof Element && e.target.closest("[data-close='1']")) closeP3GuideModal();
+  });
+  document.body.appendChild(m);
+  return m;
+}
+
+function openP3GuideModal() {
+  const m = ensureP3GuideModal();
+  m.style.display = "block";
+}
+
+function closeP3GuideModal() {
+  const m = document.getElementById("p3-guide-modal");
+  if (m) m.style.display = "none";
+}
+
 function htmlPicStatsDetailRows(rows) {
   if (!rows.length) {
     return '<tr><td colspan="8" class="p3-sub-empty">Không có dữ liệu.</td></tr>';
@@ -723,9 +774,15 @@ function ensureP3StatsDetailModal() {
 
 export function renderP3(outlet) {
   outlet.innerHTML =
-    '<section class="panel p3-panel"><h1>Theo dõi P3 đa người dùng</h1><div id="p3-root"></div></section>';
+    '<section class="panel p3-panel"><h1>Thẻ P3_Tối ưu Công chuẩn</h1><div id="p3-root"></div></section>';
 
   const root = outlet.querySelector("#p3-root");
+  root.innerHTML =
+    '<div id="p3-loading-banner" class="p3-loading-banner" role="status" aria-live="polite">' +
+    '<p class="p3-loading-text">Đang tải bảng theo dõi từ Worker…</p>' +
+    '<p class="p3-loading-hint">Vui lòng đợi vài giây. Nếu màn hình đứng lâu, kiểm tra mạng, Worker hoặc cấu hình CORS trên Cloudflare.</p>' +
+    "</div>";
+
   const expanded = new Set();
   let items = [];
   /** Roster PIC từ Worker: `{ name, nguong, mucTieu }[]`; rỗng = chưa cấu hình → fallback nhập tay */
@@ -1005,6 +1062,17 @@ export function renderP3(outlet) {
   bindFilterListeners();
 
   async function load() {
+    const hadChrome = !!root.querySelector("#p3-table-mount");
+    if (!hadChrome) {
+      const lb = root.querySelector("#p3-loading-banner");
+      if (!lb) {
+        root.innerHTML =
+          '<div id="p3-loading-banner" class="p3-loading-banner" role="status" aria-live="polite">' +
+          '<p class="p3-loading-text">Đang tải bảng theo dõi từ Worker…</p>' +
+          '<p class="p3-loading-hint">Vui lòng đợi vài giây. Nếu màn hình đứng lâu, kiểm tra mạng, Worker hoặc cấu hình CORS trên Cloudflare.</p>' +
+          "</div>";
+      }
+    }
     try {
       const data = await p3FetchDashboard();
       items = Array.isArray(data.items) ? data.items : [];
@@ -1099,6 +1167,11 @@ export function renderP3(outlet) {
       return;
     }
 
+    if (t.id === "p3-help-open") {
+      openP3GuideModal();
+      return;
+    }
+
     const thumb = t.closest("img.p3-thumb");
     if (thumb) {
       const src = thumb.getAttribute("src");
@@ -1145,6 +1218,7 @@ export function renderP3(outlet) {
     timer = null;
     closeLightbox();
     closeActionModal();
+    closeP3GuideModal();
     closePicStatsModalAll();
     document.removeEventListener("click", onDocumentStatsClick);
     if (saveBtn) saveBtn.removeEventListener("click", submitAction);
