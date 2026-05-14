@@ -1,0 +1,30 @@
+﻿# Cloudflare Worker — P3 KPI Multi-user
+name = "the-p3-kpi-worker"
+main = "workers/p3-worker.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+# Base URL NocoDB (không slash cuối)
+NOCODB_HOST = ""
+
+# Bảng hạng mục gốc (có Mã CAT, Linh kiện, Công chuẩn...)
+P3_TABLE_ID = "mgube1qyxu78ndg"
+
+# Bảng lượt triển khai theo PIC (mới)
+P3_INSTANCE_TABLE_ID = ""
+
+# Bảng danh sách PIC (cột Tên PIC, Kích hoạt) — đặt ID sau khi tạo trên NocoDB
+P3_PIC_TABLE_ID = ""
+
+# Telegram group chat id
+TELEGRAM_CHAT_ID = ""
+
+# Origin frontend
+ALLOWED_ORIGIN = "http://localhost:5173"
+
+# Secrets cần đặt trên Dashboard:
+# NOCODB_TOKEN
+# TELEGRAM_BOT_TOKEN
+# P3_IMAGE_SIGNING_SECRET
+# P3_PIN_PEPPER (optional)
+# P3_MASTER_PIN (optional) — mật khẩu dự phòng Start/End; mặc định trong code là 01ab23. Nên đặt Secret trên Dashboard nếu đổi; đồng bộ với P3_MASTER_PIN trong assets/js/config.js (frontend).

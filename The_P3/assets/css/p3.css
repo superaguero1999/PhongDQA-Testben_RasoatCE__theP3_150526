@@ -1,0 +1,744 @@
+﻿.p3-panel h1 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.p3-panel .p3-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p3-toolbar {
+  margin: 0 0 0.5rem;
+  min-height: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.p3-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.p3-panel .p3-table-scroll {
+  max-height: min(82vh, calc(100vh - 9.5rem));
+  max-height: min(82vh, calc(100dvh - 9.5rem));
+  overflow: auto;
+  border: 2px solid #94a3b8;
+  border-radius: 10px;
+  overscroll-behavior: contain;
+  background: var(--surface);
+}
+
+.p3-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.p3-table th,
+.p3-table td {
+  border-bottom: 2px solid #94a3b8;
+  padding: 0.45rem 0.55rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.p3-table th {
+  background: var(--table-head);
+  color: var(--text);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.p3-table th.p3-col-sticky,
+.p3-table td.p3-col-sticky {
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  /* Che hoàn toàn nội dung cuộn phía dưới */
+  background-clip: padding-box;
+  z-index: 3;
+  box-shadow: -6px 0 12px rgba(21, 32, 43, 0.08);
+}
+
+.p3-table thead th.p3-col-sticky {
+  top: 0;
+  z-index: 5;
+  background: var(--table-head);
+}
+
+/* Hàng hạng mục đóng: running / done — nền khớp palette badge (.p3-badge-run / .p3-badge-done) */
+.p3-table tbody tr.p3-parent-row.p3-row-running:not(.p3-parent-row-open) > td {
+  background: rgba(234, 179, 8, 0.18);
+}
+
+.p3-table tbody tr.p3-parent-row.p3-row-running:not(.p3-parent-row-open) > td.p3-col-sticky {
+  background: rgba(234, 179, 8, 0.26);
+  box-shadow: -6px 0 12px rgba(133, 77, 14, 0.14);
+}
+
+.p3-table tbody tr.p3-parent-row.p3-row-done:not(.p3-parent-row-open) > td {
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.p3-table tbody tr.p3-parent-row.p3-row-done:not(.p3-parent-row-open) > td.p3-col-sticky {
+  background: rgba(16, 185, 129, 0.24);
+  box-shadow: -6px 0 12px rgba(4, 120, 87, 0.12);
+}
+
+/* Hàng mở (+) idle: nền xanh như cũ */
+.p3-table tbody tr.p3-parent-row-open:not(.p3-row-running):not(.p3-row-done) > td {
+  background: #dbeafe;
+}
+
+.p3-table tbody tr.p3-parent-row-open:not(.p3-row-running):not(.p3-row-done) > td.p3-col-sticky {
+  background: #cfe2fd;
+  box-shadow: -6px 0 14px rgba(37, 99, 235, 0.14);
+}
+
+/* Hàng mở + running — vàng (badge run) */
+.p3-table tbody tr.p3-parent-row-open.p3-row-running > td {
+  background: rgba(254, 243, 199, 0.96);
+}
+
+.p3-table tbody tr.p3-parent-row-open.p3-row-running > td.p3-col-sticky {
+  background: rgba(253, 230, 138, 0.98);
+  box-shadow: -6px 0 14px rgba(180, 83, 9, 0.2);
+}
+
+/* Hàng mở + done — xanh lá (badge done) */
+.p3-table tbody tr.p3-parent-row-open.p3-row-done > td {
+  background: rgba(209, 250, 229, 0.96);
+}
+
+.p3-table tbody tr.p3-parent-row-open.p3-row-done > td.p3-col-sticky {
+  background: rgba(167, 243, 208, 0.98);
+  box-shadow: -6px 0 14px rgba(4, 120, 87, 0.14);
+}
+
+/* Hàng chi tiết: nền xanh nhạt đặc */
+.p3-table tbody tr.p3-parent-row-open + tr.p3-detail-row > td {
+  background: #eff6ff;
+  border-top: 2px solid #64748b;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+.p3-table tbody tr.p3-parent-row-open + tr.p3-detail-row .p3-sub-wrap {
+  background: #ffffff;
+  border: 2px solid #64748b;
+}
+
+.p3-table tbody tr.p3-parent-row-open + tr.p3-detail-row .p3-sub-table th {
+  background: #bfdbfe;
+  color: var(--text);
+}
+
+.p3-sub-wrap {
+  overflow-x: auto;
+  border: 2px solid #94a3b8;
+  border-radius: 8px;
+  margin: 0.35rem 0;
+}
+
+.p3-sub-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.p3-sub-table th,
+.p3-sub-table td {
+  border-bottom: 2px solid #94a3b8;
+  padding: 0.4rem 0.5rem;
+}
+
+.p3-sub-table th {
+  background: var(--table-head-strong);
+  color: var(--text);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.p3-sub-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 0.9rem;
+}
+
+.p3-toggle {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text);
+  cursor: pointer;
+  margin-right: 0.25rem;
+}
+
+.p3-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: block;
+  cursor: zoom-in;
+}
+
+.p3-cell-long {
+  max-width: 220px;
+  word-break: break-word;
+}
+
+/* Linh kiện: giới hạn độ rộng = mức tham chiếu / 1.5 — tiêu đề & ô dữ liệu wrap */
+.p3-table th.p3-col-linh-kien,
+.p3-table td.p3-col-linh-kien {
+  max-width: calc(13.5em / 1.5);
+  box-sizing: border-box;
+}
+
+/* Hạng mục + Tiêu chuẩn: / 1.2 so với .p3-cell-long 220px */
+.p3-table th.p3-col-hang-muc,
+.p3-table td.p3-col-hang-muc.p3-cell-long,
+.p3-table th.p3-col-tieu-chuan,
+.p3-table td.p3-col-tieu-chuan.p3-cell-long {
+  max-width: calc(220px / 1.2);
+}
+
+.p3-table th.p3-col-cong-chuan-h0,
+.p3-table td.p3-col-cong-chuan-h0,
+.p3-table th.p3-col-cong-chuan-moi,
+.p3-table td.p3-col-cong-chuan-moi {
+  max-width: calc(9.6rem / 1.2);
+}
+
+.p3-nowrap,
+.p3-p3col {
+  white-space: nowrap;
+}
+
+.p3-p3col {
+  font-weight: 600;
+}
+
+.p3-hdelta {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Dòng hạng mục (bảng chính): ô dữ liệu wrap — ghi đè .p3-nowrap / .p3-p3col trên cùng hàng */
+.p3-table tbody tr.p3-parent-row > td:not(.p3-col-sticky) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+/* Running/Tổng lượt: hẹp thêm /1.2; không tách chữ T khỏi "Tổng" khi xuống dòng */
+.p3-table thead th.p3-col-running .p3-running-th-phrase {
+  white-space: nowrap;
+}
+.p3-table thead th.p3-col-running,
+.p3-table tbody tr.p3-parent-row > td.p3-col-running {
+  max-width: calc(8.4rem / 1.2 / 1.2);
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-break: normal;
+}
+
+/* Bảng lượt (phụ): ô dữ liệu wrap */
+.p3-sub-table tbody td {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.p3-actions {
+  white-space: nowrap;
+}
+
+.p3-btn {
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(79, 70, 229, 0.35);
+  background: var(--accent-soft);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.p3-btn:hover:not(:disabled) {
+  background: rgba(79, 70, 229, 0.2);
+}
+
+/* Nút mở modal thống kê PIC — nổi bật trên toolbar */
+#p3-stats-pic-open {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  font-size: 0.83rem;
+  padding: 0.42rem 0.7rem;
+  background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+  border: 1px solid #312e81;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(30, 27, 75, 0.28);
+}
+
+#p3-stats-pic-open:hover:not(:disabled) {
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+  border-color: #1e1b4b;
+  color: #ffffff;
+}
+
+#p3-stats-pic-open:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+/* [+] Triển khai mới — nền đậm, tách biệt rõ với nút Kết thúc / toggle */
+.p3-btn[data-new] {
+  background: #4338ca;
+  border-color: #312e81;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.p3-btn[data-new]:hover:not(:disabled) {
+  background: #3730a3;
+  border-color: #1e1b4b;
+}
+
+.p3-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.p3-btn-end {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(5, 150, 105, 0.35);
+}
+
+.p3-btn-end:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.28);
+}
+
+.p3-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.p3-badge-idle {
+  background: rgba(21, 32, 43, 0.08);
+  color: var(--muted);
+}
+
+.p3-badge-run {
+  background: rgba(234, 179, 8, 0.22);
+  color: #854d0e;
+}
+
+.p3-badge-done {
+  background: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.p3-err {
+  color: #b91c1c;
+}
+
+.p3-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+
+.p3-lightbox.p3-lightbox-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.p3-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.p3-lightbox-inner {
+  position: relative;
+  z-index: 1;
+  max-width: min(96vw, 1200px);
+  max-height: 92vh;
+}
+
+.p3-lightbox-img {
+  max-width: 100%;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.p3-lightbox-close {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.p3-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+}
+
+.p3-modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.p3-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 92vw);
+  margin: 10vh auto 0;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.p3-modal-label {
+  display: block;
+  margin: 0.45rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.p3-modal-input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-fill);
+  color: var(--text);
+}
+
+select.p3-modal-input,
+select.p3-pic-select {
+  cursor: pointer;
+  min-height: 2.25rem;
+}
+
+.p3-modal-err {
+  min-height: 1.2rem;
+  color: #b91c1c;
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+}
+
+.p3-modal-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+/* Thanh lọc 2 tầng (AND) */
+.p3-filters {
+  margin: 0 0 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 2px solid #94a3b8;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.p3-filter-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.p3-filter-tier-label {
+  min-width: 3.25rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.p3-filter-warn {
+  margin: 0.1rem 0 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(254, 243, 199, 0.65);
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  color: #92400e;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.p3-filter-select {
+  min-width: 11rem;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-fill);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.p3-filter-input {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  max-width: 100%;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.p3-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Modal thống kê PIC + pop-up chi tiết */
+.p3-stats-layer {
+  z-index: 100001;
+}
+
+.p3-stats-detail-layer {
+  z-index: 100002;
+}
+
+.p3-stats-modal-card {
+  width: min(980px, 98vw);
+  max-height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
+  margin-top: 6vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p3-stats-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.p3-stats-modal-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+  padding-right: 0.25rem;
+}
+
+.p3-stats-modal-close {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Thanh chọn tháng (modal thống kê PIC) — đậm, màu nổi bật */
+.p3-stats-modal-card label[for="p3-stats-month"] {
+  font-weight: 700;
+  color: #3730a3;
+  font-size: 0.92rem;
+  letter-spacing: 0.03em;
+  margin-top: 0.15rem;
+}
+
+#p3-stats-month {
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-width: 2px;
+  border-color: #6366f1;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.16) 0%, rgba(79, 70, 229, 0.1) 100%);
+  box-shadow: 0 1px 5px rgba(67, 56, 202, 0.2);
+  min-height: 2.55rem;
+}
+
+#p3-stats-month:hover {
+  border-color: #4338ca;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.22) 0%, rgba(79, 70, 229, 0.14) 100%);
+}
+
+#p3-stats-month:focus-visible {
+  outline: none;
+  border-color: #4338ca;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.5);
+}
+
+.p3-stats-detail-card {
+  width: min(1020px, 98vw);
+  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
+  margin-top: 4vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p3-stats-lead {
+  margin: 0 0 0.5rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.p3-stats-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(58vh, 28rem);
+  max-height: min(58dvh, 28rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 0.35rem;
+  overscroll-behavior: contain;
+}
+
+.p3-stats-table {
+  min-width: 100%;
+}
+
+/* Bảng tóm tắt theo PIC (5 cột): PIC | lượt done | KPI | P3 */
+.p3-stats-pic-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.p3-stats-pic-table thead th:nth-child(1),
+.p3-stats-pic-table tbody td:nth-child(1) {
+  width: 30%;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.p3-stats-pic-table thead th:nth-child(2),
+.p3-stats-pic-table tbody td:nth-child(2) {
+  width: 11%;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.p3-stats-pic-table thead th:nth-child(3),
+.p3-stats-pic-table tbody td:nth-child(3),
+.p3-stats-pic-table thead th:nth-child(4),
+.p3-stats-pic-table tbody td:nth-child(4) {
+  width: 14%;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.p3-stats-pic-table thead th:nth-child(5),
+.p3-stats-pic-table tbody td:nth-child(5) {
+  width: 31%;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.p3-stats-pic-table thead th:nth-child(2) {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.p3-stats-kpi-cell {
+  font-size: 0.86rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+}
+
+.p3-stats-pic-name-cell {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.p3-stats-pic-name-cell .p3-stats-cell-btn {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.p3-stats-num-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.p3-stats-cell-btn {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  text-decoration: none;
+}
+
+.p3-stats-cell-btn:hover {
+  color: var(--accent, #2563eb);
+}
+
+.p3-stats-num-cell .p3-stats-cell-btn {
+  text-align: right;
+  width: 100%;
+}
+
+.p3-stats-pic-table .p3-stats-num-cell {
+  text-align: center;
+}
+
+.p3-stats-pic-table .p3-stats-num-cell .p3-stats-cell-btn {
+  text-align: center;
+}
+
+.p3-stats-pic-table tbody td:nth-child(5) .p3-stats-cell-btn {
+  font-weight: 700;
+}
