@@ -310,6 +310,135 @@
   outline-offset: 2px;
 }
 
+/* Bảng Done theo tháng — nút toolbar cạnh thống kê PIC */
+#p3-done-month-open {
+  font-weight: 600;
+  font-size: 0.83rem;
+  padding: 0.42rem 0.7rem;
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
+  border: 1px solid #065f46;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(6, 78, 59, 0.28);
+}
+
+#p3-done-month-open:hover:not(:disabled) {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  border-color: #064e3b;
+  color: #ffffff;
+}
+
+#p3-done-month-open:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 2px;
+}
+
+.p3-done-month-layer {
+  z-index: 100001;
+}
+
+.p3-done-month-detail-layer {
+  z-index: 100002;
+}
+
+.p3-done-month-drill-cell {
+  text-align: center;
+}
+
+.p3-done-month-drill-cell .p3-done-month-drill-btn {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.p3-done-month-drill-cell .p3-done-month-drill-btn:hover {
+  color: #047857;
+  text-decoration: underline;
+}
+
+.p3-done-month-detail-card {
+  width: min(920px, 96vw);
+  max-height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
+  margin-top: 8vh;
+}
+
+.p3-done-month-detail-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.p3-done-month-meta {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.p3-done-month-modal-card label[for="p3-done-month-filter"] {
+  font-weight: 700;
+  color: #047857;
+  font-size: 0.92rem;
+  letter-spacing: 0.03em;
+  margin-top: 0.15rem;
+}
+
+#p3-done-month-filter,
+.p3-done-month-filter-select {
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-width: 2px;
+  border-color: #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.16) 0%, rgba(5, 150, 105, 0.1) 100%);
+  box-shadow: 0 1px 5px rgba(6, 95, 70, 0.2);
+  min-height: 2.55rem;
+  cursor: pointer;
+}
+
+#p3-done-month-filter:hover,
+.p3-done-month-filter-select:hover {
+  border-color: #047857;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.14) 100%);
+}
+
+.p3-done-month-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.p3-done-month-table thead th,
+.p3-done-month-table tbody td {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Cột Công chuẩn (mới) + P3 trung bình — nền xanh nhạt */
+.p3-done-month-table thead th:nth-child(6),
+.p3-done-month-table thead th:nth-child(7),
+.p3-done-month-table tbody td:nth-child(6),
+.p3-done-month-table tbody td:nth-child(7) {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.p3-done-month-table thead th:nth-child(6),
+.p3-done-month-table thead th:nth-child(7) {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.p3-done-month-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+}
+
+#p3-done-month-export-excel {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* [+] Triển khai mới — nền đậm, tách biệt rõ với nút Kết thúc / toggle */
 .p3-btn[data-new] {
   background: #4338ca;
@@ -469,6 +598,13 @@ select.p3-pic-select {
   font-size: 0.88rem;
 }
 
+.p3-pin-hint {
+  margin: -0.2rem 0 0.65rem;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
 .p3-modal-actions {
   margin-top: 0.65rem;
   display: flex;
@@ -582,8 +718,11 @@ select.p3-pic-select {
 
 .p3-guide-card {
   width: min(720px, 96vw);
+  max-width: 100%;
   max-height: min(85vh, 85dvh);
-  overflow: auto;
+  overflow-x: visible;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .p3-guide-head {
@@ -615,34 +754,70 @@ select.p3-pic-select {
   font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.4;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Ghi đè table/th/td global Form15 (index.html: min-width 1200px) — tránh cắt chữ */
+.p3-guide-card table.p3-guide-table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .p3-guide-table {
   width: 100%;
+  max-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.86rem;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
+.p3-guide-card .p3-guide-table th,
+.p3-guide-card .p3-guide-table td,
 .p3-guide-table th,
 .p3-guide-table td {
   border: 1px solid var(--border);
   padding: 0.45rem 0.55rem;
   text-align: left;
   vertical-align: top;
+  position: static;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .p3-guide-table th {
   background: rgba(15, 23, 42, 0.06);
   font-weight: 650;
-  white-space: nowrap;
 }
 
+/* Cột "Bước" */
+.p3-guide-card .p3-guide-table th:first-child,
+.p3-guide-card .p3-guide-table td:first-child,
 .p3-guide-table th:first-child,
 .p3-guide-table td:first-child {
-  width: 6.5%;
-  max-width: 5.5rem;
+  width: 26%;
+  max-width: 9.5rem;
+  min-width: 4.5rem;
+  box-sizing: border-box;
+}
+
+/* Cột "Việc cần làm" — wrap toàn bộ nội dung */
+.p3-guide-card .p3-guide-table th:last-child,
+.p3-guide-card .p3-guide-table td:last-child,
+.p3-guide-table th:last-child,
+.p3-guide-table td:last-child {
+  width: 74%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -783,6 +958,11 @@ select.p3-pic-select {
   width: 31%;
   text-align: center;
   vertical-align: middle;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.p3-stats-pic-table thead th:nth-child(5) {
+  background: rgba(34, 197, 94, 0.2);
 }
 
 .p3-stats-pic-table thead th:nth-child(2) {

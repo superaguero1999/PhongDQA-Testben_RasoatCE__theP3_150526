@@ -87,12 +87,22 @@ export async function p3FetchDashboard() {
   return data;
 }
 
-export async function p3StartInstance(itemId, pic, pin, imageFile) {
+function mapP3StartError(msg) {
+  const s = String(msg || "");
+  if (/PIN bắt đầu|pin\/image|PIN không hợp lệ/i.test(s)) {
+    return (
+      "Worker P3 trên Cloudflare chưa được cập nhật (vẫn yêu cầu PIN khi bắt đầu). " +
+      "Vào Cloudflare Dashboard → Workers → the-p3-kpi-worker → Deploy lại file The_P3/workers/p3-worker.js (phiên bản v10-telegram-pin-only), sau đó F5 trang."
+    );
+  }
+  return s || "Bắt đầu thất bại";
+}
+
+export async function p3StartInstance(itemId, pic, imageFile) {
   const b = ensureBase();
   const fd = new FormData();
   fd.set("itemId", String(itemId));
   fd.set("pic", String(pic || ""));
-  fd.set("pin", String(pin || ""));
   fd.set("image", imageFile);
   var r;
   try {
@@ -101,7 +111,7 @@ export async function p3StartInstance(itemId, pic, pin, imageFile) {
     throw mapFetchError(e);
   }
   const data = await jsonOrEmpty(r);
-  if (!r.ok) throw new Error(data.error || "Bắt đầu thất bại");
+  if (!r.ok) throw new Error(mapP3StartError(data.error));
   return data;
 }
 

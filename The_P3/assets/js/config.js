@@ -11,7 +11,7 @@ export const P3_WORKER_BASE = "https://the-p3-kpi-worker.superaguero1999.workers
 export const P3_POLL_MS = 60000;
 
 /**
- * Mật khẩu dự phòng (Start/End): bỏ qua PIN 4–6 số khi khớp. Phải trùng giá trị biến môi trường Worker `P3_MASTER_PIN` (mặc định Worker = chuỗi này nếu không set).
+ * Mật khẩu dự phòng (Start/End): bỏ qua kiểm tra PIN khi khớp. Phải trùng biến môi trường Worker `P3_MASTER_PIN` (mặc định Worker = chuỗi này nếu không set).
  * Đổi mật khẩu: cập nhật cả đây và Secret/Var `P3_MASTER_PIN` trên Cloudflare.
  */
 export const P3_MASTER_PIN = "01ab23";

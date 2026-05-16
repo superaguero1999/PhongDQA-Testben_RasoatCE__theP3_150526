@@ -9,6 +9,18 @@ function esc(s) {
     .replace(/\"/g, "&quot;");
 }
 
+function p3PinIsMaster(pin) {
+  const s = String(pin || "").trim();
+  return Boolean(P3_MASTER_PIN && s === P3_MASTER_PIN);
+}
+
+function p3PinEndValid(pin) {
+  const s = String(pin || "").trim();
+  if (!s) return false;
+  if (p3PinIsMaster(s)) return true;
+  return s.length >= 4 && s.length <= 64 && /^[\x21-\x7E]+$/.test(s);
+}
+
 function fmtTime(v) {
   if (!v) return "—";
   const d = new Date(v);
@@ -22,6 +34,51 @@ function fmtP3(v) {
   if (!Number.isFinite(n)) return esc(v);
   const sign = n > 0 ? "+" : "";
   return `${sign}${(n * 100).toFixed(1)}%`;
+}
+
+/** Chuẩn hoá ô có thể là string hoặc object kiểu SingleSelect NocoDB `{ title }` */
+function p3NocoScalarStr(v) {
+  if (v == null || v === "") return "";
+  const t = typeof v;
+  if (t === "string" || t === "number" || t === "boolean") return String(v).trim();
+  if (t === "object") {
+    const o = v;
+    const title = o.title ?? o.Title ?? o.display_value;
+    if (title != null && typeof title !== "object") return String(title).trim();
+    if (typeof o.value === "string") return o.value.trim();
+  }
+  return String(v).trim();
+}
+
+/** Khóa trạng thái lượt (running | done | idle | duplicate | …) — chữ thường */
+function p3InstanceStatusKey(ins) {
+  const raw = p3NocoScalarStr(ins && ins.status).toLowerCase().replace(/\s+/g, " ").trim();
+  if (!raw) return "idle";
+  if (raw === "running" || raw === "đang chạy" || raw === "dang chay") return "running";
+  if (
+    raw === "done" ||
+    raw === "hoàn thành" ||
+    raw === "hoan thanh" ||
+    raw === "đã xong" ||
+    raw === "da xong" ||
+    raw === "hoàn tất" ||
+    raw === "hoan tat"
+  )
+    return "done";
+  if (raw === "idle" || raw === "chờ" || raw === "cho") return "idle";
+  if (raw === "duplicate" || raw === "trùng" || raw === "trung") return "duplicate";
+  return raw;
+}
+
+/** Chuỗi phục vụ lọc kiểu “chứa”: giá trị API + từ hay gõ tiếng Việt */
+function p3StatusFilterHaystack(ins) {
+  const key = p3InstanceStatusKey(ins);
+  let vn = "";
+  if (key === "running") vn += " đang chạy đang chay";
+  else if (key === "done") vn += " hoàn thành hoan thanh đã xong da xong hoàn tất hoan tat xong";
+  else if (key === "idle") vn += " chờ nhàn rảnh";
+  else if (key === "duplicate") vn += " trùng trung lap lai duplicate";
+  return `${key}${vn}`;
 }
 
 /** Khoảng T2 − T1 (giờ); null nếu thiếu hoặc không hợp lệ */
@@ -49,8 +106,7 @@ function itemAvgCongChuanMoiHours(item) {
 
 /** Giờ T2−T1 cho một lượt (done); ưu tiên trường từ Worker */
 function instancePersonalHours(ins) {
-  const st = String(ins.status || "").toLowerCase();
-  if (st !== "done") return null;
+  if (p3InstanceStatusKey(ins) !== "done") return null;
   if (ins.congChuanCaNhan != null && String(ins.congChuanCaNhan).trim() !== "") {
     const n = Number(ins.congChuanCaNhan);
     if (Number.isFinite(n)) return n;
@@ -152,7 +208,7 @@ function p3HaystackForPair(item, ins, fieldKey) {
     case "tyLeP3":
       return p3RatioSearchBlob(ins.tyLeP3);
     case "status":
-      return String(ins.status ?? "");
+      return p3StatusFilterHaystack(ins);
     default:
       return "";
   }
@@ -230,6 +286,117 @@ function p3FiltersEffectivelyOn(f1, v1, f2, v2) {
   return (!!f1 && !!n1) || (!!f2 && !!n2);
 }
 
+function p3FmtTimePlain(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString("vi-VN");
+}
+
+function p3FmtP3Plain(v) {
+  if (v === "" || v == null) return "";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v);
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${(n * 100).toFixed(1)}%`;
+}
+
+function p3FilterFieldLabel(fieldKey) {
+  const row = P3_FILTER_FIELDS.find((r) => r.value === fieldKey);
+  return row && row.label ? row.label : fieldKey || "";
+}
+
+/** Một dòng Excel = 1 lượt (hoặc 1 hạng mục không có lượt sau lọc) — cùng logic `p3ApplyFiltersToItems` */
+function p3BuildFilteredExportRows(originalItems, f1, v1, f2, v2) {
+  const displayItems = p3ApplyFiltersToItems(originalItems, f1, v1, f2, v2);
+  const rows = [];
+  for (let i = 0; i < displayItems.length; i++) {
+    const item = displayItems[i];
+    const instList = Array.isArray(item.instances) ? item.instances : [];
+    const parent = {
+      "Mã CAT": String(item.maCat ?? ""),
+      "Linh kiện": String(item.linhKien ?? ""),
+      "Hạng mục kiểm tra": String(item.hangMuc ?? ""),
+      "Tiêu chuẩn": String(item.tieuChuan ?? ""),
+      Document: String(item.document ?? ""),
+      "Công chuẩn (H0)": String(item.congChuan ?? ""),
+      "Công chuẩn (mới)": fmtCongChuanMoiCell(item) === "—" ? "" : fmtCongChuanMoiCell(item),
+      "P3 trung bình": p3FmtP3Plain(item.p3Avg),
+      "Running/Tổng lượt": `${item.runningCount ?? ""}/${item.instanceCount ?? ""}`,
+    };
+    if (!instList.length) {
+      rows.push({
+        ...parent,
+        PIC: "",
+        T1: "",
+        T2: "",
+        "Công chuẩn cá nhân": "",
+        "P3 cá nhân": "",
+        "Trạng thái": "",
+        "Ảnh T1 (URL)": "",
+        "Ảnh T2 (URL)": "",
+      });
+      continue;
+    }
+    for (let j = 0; j < instList.length; j++) {
+      const ins = instList[j];
+      const caNhan = fmtCongChuanCaNhanCell(ins);
+      rows.push({
+        ...parent,
+        PIC: String(ins.pic ?? "").trim() || "(chưa đặt PIC)",
+        T1: p3FmtTimePlain(ins.t1),
+        T2: p3FmtTimePlain(ins.t2),
+        "Công chuẩn cá nhân": caNhan === "—" ? "" : caNhan,
+        "P3 cá nhân": p3FmtP3Plain(ins.tyLeP3),
+        "Trạng thái": p3NocoScalarStr(ins.status) || p3InstanceStatusKey(ins),
+        "Ảnh T1 (URL)": ins.thumbStart ? p3AbsThumbUrl(ins.thumbStart) : "",
+        "Ảnh T2 (URL)": ins.thumbEnd ? p3AbsThumbUrl(ins.thumbEnd) : "",
+      });
+    }
+  }
+  return rows;
+}
+
+let p3XlsxLoadPromise = null;
+
+function p3EnsureXlsx() {
+  const existing = globalThis.XLSX;
+  if (existing && existing.utils) return Promise.resolve(existing);
+  if (p3XlsxLoadPromise) return p3XlsxLoadPromise;
+  p3XlsxLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    s.async = true;
+    s.onload = () => {
+      const X = globalThis.XLSX;
+      if (X && X.utils) resolve(X);
+      else reject(new Error("Không tải được thư viện XLSX."));
+    };
+    s.onerror = () => reject(new Error("Không tải được thư viện XLSX (mạng hoặc CDN)."));
+    document.head.appendChild(s);
+  });
+  return p3XlsxLoadPromise;
+}
+
+async function p3ExportFilteredToExcel(originalItems, f1, v1, f2, v2) {
+  const exportRows = p3BuildFilteredExportRows(originalItems, f1, v1, f2, v2);
+  if (!exportRows.length) {
+    throw new Error("Không có dữ liệu khớp bộ lọc để xuất Excel.");
+  }
+  const X = await p3EnsureXlsx();
+  const ws = X.utils.json_to_sheet(exportRows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, "P3_Loc");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const parts = ["p3-loc", stamp];
+  const n1 = p3NeedleNorm(v1);
+  const n2 = p3NeedleNorm(v2);
+  if (f1 && n1) parts.push("f1");
+  if (f2 && n2) parts.push("f2");
+  X.writeFile(wb, `${parts.join("-")}.xlsx`);
+  return exportRows.length;
+}
+
 /** YYYY-MM từ T1 (theo giờ local) */
 function p3YmFromT1(iso) {
   if (!iso) return "";
@@ -300,10 +467,10 @@ function p3DoneInstancesForPicMonth(items, ym) {
     const inst = Array.isArray(item.instances) ? item.instances : [];
     for (let j = 0; j < inst.length; j++) {
       const ins = inst[j];
-      const st = String(ins.status || "").toLowerCase();
-      if (st === "duplicate") continue;
-      if (st !== "done") continue;
-      if (p3YmFromT1(ins.t1) !== ym) continue;
+      const stKey = p3InstanceStatusKey(ins);
+      if (stKey === "duplicate") continue;
+      if (stKey !== "done") continue;
+      if (!p3DoneInstanceMatchesMonthFilter(ins, ym)) continue;
       out.push({ item, ins });
     }
   }
@@ -342,6 +509,204 @@ function p3BuildPicMonthAggregates(items, ym) {
   });
   out.sort((a, b) => String(a.pic).localeCompare(String(b.pic), "vi"));
   return out;
+}
+
+/** Giá trị lọc: mọi lượt done (mọi tháng T1) */
+const P3_DONE_MONTH_ALL = "__all__";
+
+function p3DoneMonthFilterIsAll(ym) {
+  return String(ym || "").trim() === P3_DONE_MONTH_ALL;
+}
+
+function p3DoneInstanceMatchesMonthFilter(ins, ym) {
+  if (p3InstanceStatusKey(ins) !== "done") return false;
+  if (p3DoneMonthFilterIsAll(ym)) return true;
+  const want = String(ym || "").trim();
+  if (!want) return p3YmFromT1(ins.t1) === p3CurrentYm();
+  return p3YmFromT1(ins.t1) === want;
+}
+
+/** Các tháng (YYYY-MM) có ít nhất một lượt done (theo T1) */
+function p3CollectDoneMonthsFromItems(items) {
+  const set = new Set();
+  const arr = Array.isArray(items) ? items : [];
+  for (let i = 0; i < arr.length; i++) {
+    const inst = Array.isArray(arr[i].instances) ? arr[i].instances : [];
+    for (let j = 0; j < inst.length; j++) {
+      const ins = inst[j];
+      if (p3InstanceStatusKey(ins) !== "done") continue;
+      const ym = p3YmFromT1(ins.t1);
+      if (ym) set.add(ym);
+    }
+  }
+  return Array.from(set).sort((a, b) => b.localeCompare(a));
+}
+
+function p3FormatYmLabelVi(ym) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(ym || ""));
+  if (!m) return String(ym || "");
+  return `Tháng ${m[2]}/${m[1]}`;
+}
+
+function p3DoneMonthFilterPeriodLabel(ym) {
+  if (p3DoneMonthFilterIsAll(ym)) return "Tất cả tháng";
+  return p3FormatYmLabelVi(ym);
+}
+
+function p3DoneMonthFilterOptionsHtml(items, selectedYm) {
+  const cur = p3CurrentYm();
+  const monthSet = new Set(p3CollectDoneMonthsFromItems(items));
+  monthSet.add(cur);
+  const months = Array.from(monthSet).sort((a, b) => b.localeCompare(a));
+  let want = String(selectedYm ?? "").trim();
+  if (!want || (want !== P3_DONE_MONTH_ALL && !months.includes(want))) want = cur;
+
+  let html = `<option value="${P3_DONE_MONTH_ALL}"${want === P3_DONE_MONTH_ALL ? " selected" : ""}>Tất cả tháng</option>`;
+  for (let i = 0; i < months.length; i++) {
+    const ym = months[i];
+    const lab = p3FormatYmLabelVi(ym) + (ym === cur ? " (hiện tại)" : "");
+    html += `<option value="${esc(ym)}"${want === ym ? " selected" : ""}>${esc(lab)}</option>`;
+  }
+  return { html, value: want };
+}
+
+function p3SyncDoneMonthFilterSelect(items, preferredYm) {
+  const sel = document.getElementById("p3-done-month-filter");
+  if (!sel) return p3CurrentYm();
+  const built = p3DoneMonthFilterOptionsHtml(items, preferredYm);
+  sel.innerHTML = built.html;
+  sel.value = built.value;
+  return built.value;
+}
+
+/** Hạng mục có ít nhất một lượt done; T1 thuộc ym hoặc mọi tháng nếu ym = __all__ */
+function p3ItemsWithDoneInMonth(items, ym) {
+  const out = [];
+  const arr = Array.isArray(items) ? items : [];
+  for (let i = 0; i < arr.length; i++) {
+    const item = arr[i];
+    const inst = Array.isArray(item.instances) ? item.instances : [];
+    for (let j = 0; j < inst.length; j++) {
+      const ins = inst[j];
+      if (!p3DoneInstanceMatchesMonthFilter(ins, ym)) continue;
+      out.push(item);
+      break;
+    }
+  }
+  out.sort((a, b) => String(a.maCat ?? "").localeCompare(String(b.maCat ?? ""), "vi"));
+  return out;
+}
+
+/** Lượt done của một hạng mục có T1 thuộc tháng ym */
+function p3DoneInstancesForItemInMonth(item, ym) {
+  const inst = Array.isArray(item && item.instances) ? item.instances : [];
+  const out = [];
+  for (let j = 0; j < inst.length; j++) {
+    const ins = inst[j];
+    if (!p3DoneInstanceMatchesMonthFilter(ins, ym)) continue;
+    out.push(ins);
+  }
+  out.sort((a, b) => {
+    const ta = new Date(a.t1 || 0).getTime();
+    const tb = new Date(b.t1 || 0).getTime();
+    if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return tb - ta;
+    return String(b.id ?? "").localeCompare(String(a.id ?? ""), "vi");
+  });
+  return out;
+}
+
+function htmlP3DoneMonthInstanceDetailRows(item, ym) {
+  const list = p3DoneInstancesForItemInMonth(item, ym);
+  if (!list.length) {
+    const msg = p3DoneMonthFilterIsAll(ym)
+      ? "Không có lượt done."
+      : "Không có lượt done trong tháng này.";
+    return `<tr><td colspan="6" class="p3-sub-empty">${msg}</td></tr>`;
+  }
+  return list
+    .map((ins) => {
+      const sk = p3InstanceStatusKey(ins);
+      const caNhan = esc(fmtCongChuanCaNhanCell(ins));
+      return (
+        "<tr>" +
+        `<td>${esc(ins.pic || "(chưa đặt PIC)")}</td>` +
+        `<td class="p3-nowrap">${fmtTime(ins.t1)}</td>` +
+        `<td class="p3-nowrap">${fmtTime(ins.t2)}</td>` +
+        `<td class="p3-nowrap p3-hdelta p3-col-cong-chuan-moi" title="T2−T1 (giờ)">${caNhan}</td>` +
+        `<td class="p3-p3col">${fmtP3(ins.tyLeP3)}</td>` +
+        `<td>${stBadge(sk)}</td>` +
+        "</tr>"
+      );
+    })
+    .join("");
+}
+
+function htmlP3DoneMonthTableRows(doneItems, ym) {
+  if (!doneItems.length) {
+    const msg = p3DoneMonthFilterIsAll(ym)
+      ? "Không có hạng mục có lượt done."
+      : "Không có hạng mục có lượt done trong tháng này.";
+    return `<tr><td colspan="7" class="p3-sub-empty">${msg}</td></tr>`;
+  }
+  const monthKey = esc(String(ym || ""));
+  return doneItems
+    .map((item) => {
+      const itemId = esc(String(item.id ?? ""));
+      const congMoi = esc(fmtCongChuanMoiCell(item));
+      const avg = fmtP3(item.p3Avg);
+      const drillBtn = (label) =>
+        `<button type="button" class="p3-stats-cell-btn p3-done-month-drill-btn" data-p3-done-month-detail data-item-id="${itemId}" data-ym="${monthKey}">${label}</button>`;
+      return (
+        "<tr>" +
+        `<td class="p3-nowrap">${esc(item.maCat)}</td>` +
+        `<td class="p3-col-linh-kien">${esc(item.linhKien)}</td>` +
+        `<td class="p3-cell-long p3-col-hang-muc">${esc(item.hangMuc)}</td>` +
+        `<td class="p3-cell-long p3-col-tieu-chuan">${esc(item.tieuChuan)}</td>` +
+        `<td class="p3-col-cong-chuan-h0">${esc(item.congChuan)}</td>` +
+        `<td class="p3-nowrap p3-hdelta p3-col-cong-chuan-moi p3-done-month-drill-cell" title="Bấm xem chi tiết lượt done trong tháng">${drillBtn(congMoi)}</td>` +
+        `<td class="p3-p3col p3-done-month-drill-cell" title="Bấm xem chi tiết lượt done trong tháng">${drillBtn(avg)}</td>` +
+        "</tr>"
+      );
+    })
+    .join("");
+}
+
+/** Dòng xuất Excel — bảng Done theo tháng (hạng mục có lượt done, T1 trong tháng) */
+function p3BuildDoneMonthExportRows(allItems, ym) {
+  const ymUse = String(ym || "").trim() || p3CurrentYm();
+  const doneItems = p3ItemsWithDoneInMonth(allItems, ymUse);
+  return doneItems.map((item) => {
+    const congMoi = fmtCongChuanMoiCell(item);
+    return {
+      "Mã CAT": String(item.maCat ?? ""),
+      "Linh kiện": String(item.linhKien ?? ""),
+      "Hạng mục kiểm tra": String(item.hangMuc ?? ""),
+      "Tiêu chuẩn": String(item.tieuChuan ?? ""),
+      "Công chuẩn (H0)": String(item.congChuan ?? ""),
+      "Công chuẩn (mới)": congMoi === "—" ? "" : congMoi,
+      "P3 trung bình": p3FmtP3Plain(item.p3Avg),
+    };
+  });
+}
+
+async function p3ExportDoneMonthToExcel(allItems, ym) {
+  const ymUse = String(ym || "").trim() || p3CurrentYm();
+  const exportRows = p3BuildDoneMonthExportRows(allItems, ymUse);
+  if (!exportRows.length) {
+    throw new Error(
+      p3DoneMonthFilterIsAll(ymUse)
+        ? "Không có hạng mục done để xuất Excel."
+        : "Không có hạng mục done trong tháng này để xuất Excel.",
+    );
+  }
+  const X = await p3EnsureXlsx();
+  const ws = X.utils.json_to_sheet(exportRows);
+  const wb = X.utils.book_new();
+  X.utils.book_append_sheet(wb, ws, "P3_Done");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const fileTag = p3DoneMonthFilterIsAll(ymUse) ? "all" : ymUse;
+  X.writeFile(wb, `p3-done-${fileTag}-${stamp}.xlsx`);
+  return exportRows.length;
 }
 
 function stBadge(s) {
@@ -403,12 +768,12 @@ function closeLightbox() {
 /** Trạng thái hiển thị 1 dòng hạng mục: running nếu có lượt running; done nếu mọi lượt (hợp lệ) đều done; ngược lại idle (không class) */
 function p3AggregateParentRowStatus(item) {
   const list = Array.isArray(item.instances) ? item.instances : [];
-  const relevant = list.filter((ins) => String(ins.status || "").toLowerCase() !== "duplicate");
+  const relevant = list.filter((ins) => p3InstanceStatusKey(ins) !== "duplicate");
   if (!relevant.length) return "";
   let hasRun = false;
   let allDone = true;
   for (let i = 0; i < relevant.length; i++) {
-    const st = String(relevant[i].status || "idle").toLowerCase();
+    const st = p3InstanceStatusKey(relevant[i]);
     if (st === "running") hasRun = true;
     if (st !== "done") allDone = false;
   }
@@ -459,8 +824,9 @@ function buildInstanceRows(item, f1, v1, f2, v2) {
       const imgT2 = ins.thumbEnd
         ? `<img class="p3-thumb" src="${esc(p3AbsThumbUrl(ins.thumbEnd))}" alt="" loading="lazy" title="Bấm để xem lớn" />`
         : "—";
+      const sk = p3InstanceStatusKey(ins);
       const endBtn =
-        String(ins.status) === "running"
+        sk === "running"
           ? `<button type="button" class="p3-btn p3-btn-end" data-end="${esc(ins.id)}">Kết thúc</button>`
           : `<button type="button" class="p3-btn p3-btn-end" disabled>Kết thúc</button>`;
 
@@ -474,7 +840,7 @@ function buildInstanceRows(item, f1, v1, f2, v2) {
         `<td>${imgT1}</td>` +
         `<td>${imgT2}</td>` +
         `<td class="p3-p3col">${fmtP3(ins.tyLeP3)}</td>` +
-        `<td>${stBadge(ins.status)}</td>` +
+        `<td>${stBadge(sk)}</td>` +
         `<td>${endBtn}</td>` +
         "</tr>"
       );
@@ -518,6 +884,7 @@ function buildFiltersSectionHtml(fs) {
     "</div>" +
     '<div class="p3-filter-actions">' +
     '<button type="button" class="p3-btn p3-btn-end" id="p3-filter-clear">Xóa lọc</button>' +
+    '<button type="button" class="p3-btn" id="p3-export-excel">Xuất Excel</button>' +
     '<button type="button" class="p3-help-link" id="p3-help-open" aria-haspopup="dialog">Hướng dẫn</button>' +
     "</div>" +
     "</div>"
@@ -551,6 +918,7 @@ function buildP3ChromeHtml(fs) {
     '<p class="p3-toolbar">' +
     '<span id="p3-status" class="p3-status"></span>' +
     '<button type="button" class="p3-btn" id="p3-stats-pic-open">Thống kê P3 theo PIC</button>' +
+    '<button type="button" class="p3-btn" id="p3-done-month-open">Dữ liệu Công chuẩn mới</button>' +
     "</p>" +
     buildFiltersSectionHtml(fs) +
     '<div id="p3-table-mount"></div>' +
@@ -560,6 +928,10 @@ function buildP3ChromeHtml(fs) {
 
 function ensureActionModal() {
   let m = document.getElementById("p3-action-modal");
+  if (m && !m.querySelector("#p3-pin-wrap")) {
+    m.remove();
+    m = null;
+  }
   if (m) return m;
   m = document.createElement("div");
   m.id = "p3-action-modal";
@@ -574,9 +946,12 @@ function ensureActionModal() {
     '<option value="">— Chọn PIC —</option>' +
     "</select>" +
     '<input id="p3-pic-input" class="p3-modal-input" type="text" maxlength="60" placeholder="Nhập tên PIC" style="display:none" />' +
-    '<label class="p3-modal-label">Mã PIN (4–6 số)</label>' +
-    '<input id="p3-pin-input" class="p3-modal-input" type="password" inputmode="text" autocomplete="off" placeholder="VD: 0123" />' +
-    '<label class="p3-modal-label">Ảnh chứng từ</label>' +
+    '<div id="p3-pin-wrap" class="p3-pin-wrap">' +
+    '<label class="p3-modal-label" id="p3-pin-label">Mật khẩu</label>' +
+    '<input id="p3-pin-input" class="p3-modal-input" type="password" inputmode="text" autocomplete="off" placeholder="Mã PIN trong tin Telegram" />' +
+    '<p id="p3-pin-hint" class="p3-pin-hint" aria-live="polite"></p>' +
+    "</div>" +
+    '<label class="p3-modal-label">Ảnh</label>' +
     '<input id="p3-file-input" class="p3-modal-input" type="file" accept="image/*" />' +
     '<p id="p3-modal-err" class="p3-modal-err" aria-live="polite"></p>' +
     '<div class="p3-modal-actions">' +
@@ -599,10 +974,19 @@ function openActionModal(mode, payload, picOptions) {
   const picWrap = m.querySelector("#p3-pic-wrap");
   const picSelect = m.querySelector("#p3-pic-select");
   const picInput = m.querySelector("#p3-pic-input");
+  const pinWrap = m.querySelector("#p3-pin-wrap");
+  const pinLabel = m.querySelector("#p3-pin-label");
   const pinInput = m.querySelector("#p3-pin-input");
+  const pinHint = m.querySelector("#p3-pin-hint");
   const fileInput = m.querySelector("#p3-file-input");
   const err = m.querySelector("#p3-modal-err");
   if (title) title.textContent = mode === "start" ? "[+] Triển khai mới" : "Kết thúc lượt triển khai";
+  if (pinWrap) pinWrap.style.display = mode === "start" ? "none" : "block";
+  if (pinLabel) pinLabel.textContent = "Mật khẩu";
+  if (pinInput) pinInput.placeholder = "VD: abcd12 (trong tin P3 START)";
+  if (pinHint) {
+    pinHint.textContent = mode === "end" ? "Nhập đúng mã PIN được cung cấp" : "";
+  }
   if (picWrap) picWrap.style.display = mode === "start" ? "block" : "none";
   const useRoster = mode === "start" && list.length > 0;
   if (picSelect && picInput) {
@@ -670,8 +1054,8 @@ function ensureP3GuideModal() {
     '<p class="p3-guide-lead">Tóm tắt thao tác chính — chi tiết cấu hình xem tài liệu Worker / Noco.mkis01ab23.DB.</p>' +
     '<table class="p3-guide-table">' +
     "<thead><tr><th>Bước</th><th>Việc cần làm</th></tr></thead><tbody>" +
-    "<tr><td>Triển khai mới</td><td>Bấm <strong>[+] Triển khai mới</strong> trên hạng mục → chọn PIC (hoặc nhập tay nếu được phép) → PIN 4–6 số hoặc mật khẩu master → chọn ảnh chứng từ → <strong>Xác nhận</strong>. Một PIC chỉ một lượt <em>Running</em> trên cùng hạng mục.</td></tr>" +
-    "<tr><td>Kết thúc lượt</td><td>Khi lượt đang <em>Running</em>, bấm <strong>Kết thúc</strong> → nhập PIN + ảnh; hệ thống ghi T2, tỷ lệ P3 và công chuẩn cá nhân.</td></tr>" +
+    "<tr><td>Triển khai mới</td><td>Bấm <strong>[+] Triển khai mới</strong> → chọn PIC → chọn ảnh → <strong>Xác nhận</strong> (không nhập mật khẩu). Telegram tự gửi mã PIN (ví dụ <code>PIN: abcd12</code>). Một PIC chỉ một lượt <em>Running</em> trên cùng hạng mục.</td></tr>" +
+    "<tr><td>Kết thúc lượt</td><td>Bấm <strong>Kết thúc</strong> → nhập <strong>mật khẩu trong tin Telegram</strong> + ảnh; hệ thống ghi T2, tỷ lệ P3 và công chuẩn cá nhân.</td></tr>" +
     "<tr><td>Lọc bảng</td><td><strong>Lọc 1</strong> và <strong>Lọc 2</strong> áp dụng đồng thời (AND). Để trống giá trị một tầng thì tầng đó không lọc. <strong>Xóa lọc</strong> đặt lại cả hai.</td></tr>" +
     "<tr><td>Làm mới</td><td>Dữ liệu tự tải theo chu kỳ; nếu báo lỗi Worker/mạng, đợi vài giây hoặc F5 trang.</td></tr>" +
     "<tr><td>Thống kê PIC</td><td>Nút <strong>Thống kê P3 theo PIC</strong> — xem tổng hợp theo tháng (cần cấu hình roster PIC trên NocoDB).</td></tr>" +
@@ -712,7 +1096,7 @@ function htmlPicStatsDetailRows(rows) {
         `<td class="p3-col-cong-chuan-h0">${esc(item.congChuan)}</td>` +
         `<td class="p3-nowrap p3-hdelta p3-col-cong-chuan-moi" title="T2−T1 (giờ), lưu NocoDB khi kết thúc lượt">${caNhan}</td>` +
         `<td class="p3-p3col">${p3cell}</td>` +
-        `<td>${esc(String(ins.status || ""))}</td>` +
+        `<td>${esc(String(p3NocoScalarStr(ins.status) || p3InstanceStatusKey(ins)))}</td>` +
         "</tr>"
       );
     })
@@ -772,6 +1156,104 @@ function ensureP3StatsDetailModal() {
   return el;
 }
 
+function ensureP3DoneMonthModal() {
+  let el = document.getElementById("p3-done-month-modal");
+  if (el && !el.querySelector("#p3-done-month-filter")) {
+    el.remove();
+    el = null;
+  }
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "p3-done-month-modal";
+  el.className = "p3-modal p3-done-month-layer";
+  el.style.display = "none";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.setAttribute("aria-labelledby", "p3-done-month-title");
+  el.innerHTML =
+    '<div class="p3-modal-bg" data-p3-done-month-close="1"></div>' +
+    '<div class="p3-modal-card p3-stats-modal-card p3-done-month-modal-card">' +
+    '<div class="p3-stats-modal-head">' +
+    '<h3 id="p3-done-month-title" class="p3-stats-modal-title">Bảng Done theo tháng</h3>' +
+    '<div class="p3-done-month-head-actions">' +
+    '<button type="button" class="p3-btn" id="p3-done-month-export-excel">Xuất Excel</button>' +
+    '<button type="button" class="p3-btn p3-btn-end p3-stats-modal-close" data-p3-done-month-close="1">Đóng</button>' +
+    "</div>" +
+    "</div>" +
+    '<p class="p3-stats-lead">Chỉ các hạng mục có ít nhất một lượt <strong>done</strong>. Chọn <strong>Tất cả tháng</strong> hoặc một tháng cụ thể (theo <strong>T1</strong>). Mặc định: tháng hiện tại. Bấm <strong>Công chuẩn (mới)</strong> hoặc <strong>P3 trung bình</strong> để xem chi tiết từng lượt.</p>' +
+    '<label class="p3-modal-label" for="p3-done-month-filter">Tháng</label>' +
+    '<select id="p3-done-month-filter" class="p3-modal-input p3-done-month-filter-select" aria-label="Lọc theo tháng T1">' +
+    '<option value="">Đang tải…</option>' +
+    "</select>" +
+    '<p class="p3-done-month-meta" id="p3-done-month-meta" aria-live="polite"></p>' +
+    '<div class="p3-stats-scroll">' +
+    '<table class="p3-table p3-stats-table p3-done-month-table">' +
+    "<thead><tr><th>Mã CAT</th><th class=\"p3-col-linh-kien\">Linh kiện</th><th class=\"p3-col-hang-muc\">Hạng mục kiểm tra</th><th class=\"p3-col-tieu-chuan\">Tiêu chuẩn</th><th class=\"p3-col-cong-chuan-h0\">Công chuẩn (H0)</th><th class=\"p3-col-cong-chuan-moi\">Công chuẩn (mới)</th><th>P3 trung bình</th></tr></thead>" +
+    '<tbody id="p3-done-month-tbody"></tbody>' +
+    "</table>" +
+    "</div>" +
+    "</div>";
+  document.body.appendChild(el);
+  return el;
+}
+
+function closeP3DoneMonthModal() {
+  closeP3DoneMonthDetailModal();
+  const m = document.getElementById("p3-done-month-modal");
+  if (m) m.style.display = "none";
+}
+
+function ensureP3DoneMonthDetailModal() {
+  let el = document.getElementById("p3-done-month-detail-modal");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "p3-done-month-detail-modal";
+  el.className = "p3-modal p3-done-month-detail-layer";
+  el.style.display = "none";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.setAttribute("aria-labelledby", "p3-done-month-detail-title");
+  el.innerHTML =
+    '<div class="p3-modal-bg" data-p3-done-month-detail-close="1"></div>' +
+    '<div class="p3-modal-card p3-stats-detail-card p3-done-month-detail-card">' +
+    '<div class="p3-stats-modal-head">' +
+    '<h3 id="p3-done-month-detail-title" class="p3-stats-modal-title">Chi tiết lượt done</h3>' +
+    '<button type="button" class="p3-btn p3-btn-end p3-stats-modal-close" data-p3-done-month-detail-close="1">Đóng</button>' +
+    "</div>" +
+    '<div class="p3-stats-scroll">' +
+    '<table class="p3-table p3-stats-table p3-done-month-detail-table">' +
+    "<thead><tr><th>PIC</th><th>T1</th><th>T2</th><th title=\"T2−T1 (giờ)\">Công chuẩn cá nhân</th><th>P3 cá nhân</th><th>Trạng thái</th></tr></thead>" +
+    '<tbody id="p3-done-month-detail-tbody"></tbody>' +
+    "</table>" +
+    "</div>" +
+    "</div>";
+  document.body.appendChild(el);
+  return el;
+}
+
+function openP3DoneMonthDetailModal(itemId, ym, allItems) {
+  ensureP3DoneMonthDetailModal();
+  const arr = Array.isArray(allItems) ? allItems : [];
+  const item = arr.find((it) => String(it.id ?? "") === String(itemId ?? ""));
+  const tit = document.getElementById("p3-done-month-detail-title");
+  const tb = document.getElementById("p3-done-month-detail-tbody");
+  const dm = document.getElementById("p3-done-month-detail-modal");
+  if (!item || !tb || !dm) return;
+  const ymUse = String(ym || "").trim() || p3CurrentYm();
+  const n = p3DoneInstancesForItemInMonth(item, ymUse).length;
+  if (tit) {
+    const period = p3DoneMonthFilterIsAll(ymUse) ? "Tất cả tháng" : `T1 tháng ${ymUse}`;
+    tit.textContent = `Chi tiết lượt done — ${item.maCat || ""} · ${n} lượt (${period})`;
+  }
+  tb.innerHTML = htmlP3DoneMonthInstanceDetailRows(item, ymUse);
+  dm.style.display = "block";
+}
+
+function closeP3DoneMonthDetailModal() {
+  const m = document.getElementById("p3-done-month-detail-modal");
+  if (m) m.style.display = "none";
+}
+
 export function renderP3(outlet) {
   outlet.innerHTML =
     '<section class="panel p3-panel"><h1>Thẻ P3_Tối ưu Công chuẩn</h1><div id="p3-root"></div></section>';
@@ -793,6 +1275,7 @@ export function renderP3(outlet) {
   const filterState = { f1: "", v1: "", f2: "", v2: "" };
   let lastPicStatsYm = "";
   let lastPicAggregates = [];
+  let lastDoneMonthYm = "";
 
   function stripFilterSuffix(msg) {
     return String(msg || "").replace(/\s*— sau lọc:.*$/, "");
@@ -886,12 +1369,91 @@ export function renderP3(outlet) {
     if (m) m.style.display = "block";
   }
 
+  function refreshP3DoneMonthTable() {
+    const m = document.getElementById("p3-done-month-modal");
+    const filterEl = m?.querySelector("#p3-done-month-filter");
+    const tb = document.getElementById("p3-done-month-tbody");
+    const meta = document.getElementById("p3-done-month-meta");
+    if (!filterEl || !tb) return;
+    const ym = p3SyncDoneMonthFilterSelect(items, filterEl.value || lastDoneMonthYm || p3CurrentYm());
+    lastDoneMonthYm = ym;
+    const doneItems = p3ItemsWithDoneInMonth(items, ym);
+    const flat = p3DoneInstancesForPicMonth(items, ym);
+    tb.innerHTML = htmlP3DoneMonthTableRows(doneItems, ym);
+    if (meta) {
+      const period = p3DoneMonthFilterPeriodLabel(ym);
+      meta.textContent =
+        doneItems.length > 0
+          ? `${doneItems.length} hạng mục · ${flat.length} lượt done (${period})`
+          : "";
+    }
+  }
+
+  function openP3DoneMonthModal() {
+    ensureP3DoneMonthModal();
+    const m = document.getElementById("p3-done-month-modal");
+    const filterEl = m?.querySelector("#p3-done-month-filter");
+    if (filterEl) {
+      if (!filterEl.dataset.p3Bound) {
+        filterEl.dataset.p3Bound = "1";
+        filterEl.addEventListener("change", refreshP3DoneMonthTable);
+      }
+      const def = lastDoneMonthYm && lastDoneMonthYm !== "" ? lastDoneMonthYm : p3CurrentYm();
+      p3SyncDoneMonthFilterSelect(items, def);
+    }
+    refreshP3DoneMonthTable();
+    if (m) m.style.display = "block";
+  }
+
   function onDocumentStatsClick(e) {
     const t = e.target;
     if (!(t instanceof Element)) return;
     const openB = t.closest("#p3-stats-pic-open");
     if (openB && root.contains(openB)) {
       openPicStatsModal();
+      return;
+    }
+    const openDoneB = t.closest("#p3-done-month-open");
+    if (openDoneB && root.contains(openDoneB)) {
+      openP3DoneMonthModal();
+      return;
+    }
+    const closeDoneEl = t.closest("[data-p3-done-month-close]");
+    if (closeDoneEl) {
+      closeP3DoneMonthModal();
+      return;
+    }
+    const closeDoneDetailEl = t.closest("[data-p3-done-month-detail-close]");
+    if (closeDoneDetailEl) {
+      closeP3DoneMonthDetailModal();
+      return;
+    }
+    if (t.id === "p3-done-month-export-excel") {
+      void (async () => {
+        const m = document.getElementById("p3-done-month-modal");
+        const filterEl = m?.querySelector("#p3-done-month-filter");
+        const ym =
+          filterEl && filterEl.value
+            ? String(filterEl.value).trim()
+            : lastDoneMonthYm || p3CurrentYm();
+        const meta = document.getElementById("p3-done-month-meta");
+        try {
+          if (meta) meta.textContent = "Đang xuất Excel…";
+          const n = await p3ExportDoneMonthToExcel(items, ym);
+          if (meta) {
+            meta.textContent = `Đã xuất ${n} hạng mục done (${p3DoneMonthFilterPeriodLabel(ym)}).`;
+          }
+        } catch (e) {
+          if (meta) meta.textContent = String(e.message || e);
+        }
+      })();
+      return;
+    }
+    const doneDrill = t.closest("[data-p3-done-month-detail]");
+    if (doneDrill && document.getElementById("p3-done-month-modal")?.contains(doneDrill)) {
+      const itemId = doneDrill.getAttribute("data-item-id") || "";
+      const ym = doneDrill.getAttribute("data-ym") || lastDoneMonthYm || p3CurrentYm();
+      if (itemId) openP3DoneMonthDetailModal(itemId, ym, items);
       return;
     }
     const closeEl = t.closest("[data-p3-stats-close]");
@@ -1081,6 +1643,8 @@ export function renderP3(outlet) {
       renderTable();
       const sm = document.getElementById("p3-stats-modal");
       if (sm && sm.style.display === "block") refreshPicStatsTable();
+      const dm = document.getElementById("p3-done-month-modal");
+      if (dm && dm.style.display === "block") refreshP3DoneMonthTable();
     } catch (e) {
       const msg = String(e.message || e);
       const hadData = Array.isArray(items) && items.length > 0;
@@ -1089,6 +1653,8 @@ export function renderP3(outlet) {
         renderTable();
         const sm2 = document.getElementById("p3-stats-modal");
         if (sm2 && sm2.style.display === "block") refreshPicStatsTable();
+        const dm2 = document.getElementById("p3-done-month-modal");
+        if (dm2 && dm2.style.display === "block") refreshP3DoneMonthTable();
       } else {
         root.innerHTML = `<p class="p3-err">${esc(msg)}</p>`;
         const st0 = statusEl();
@@ -1113,10 +1679,8 @@ export function renderP3(outlet) {
     const pin = (pinInput && pinInput.value ? pinInput.value : "").trim();
     const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
-    const pinOkDigits = /^\d{4,6}$/.test(pin);
-    const pinOkMaster = P3_MASTER_PIN && pin === P3_MASTER_PIN;
-    if (!pinOkDigits && !pinOkMaster) {
-      if (err) err.textContent = "Mã PIN không hợp lệ.";
+    if (mode === "end" && !p3PinEndValid(pin)) {
+      if (err) err.textContent = "Nhập đúng mật khẩu PIN trong tin Telegram (ví dụ: abcd12).";
       return;
     }
     if (!file) {
@@ -1137,7 +1701,7 @@ export function renderP3(outlet) {
           if (err) err.textContent = useRoster ? "Vui lòng chọn PIC trong danh sách." : "Vui lòng nhập tên PIC.";
           return;
         }
-        await p3StartInstance(payload.itemId, pic, pin, file);
+        await p3StartInstance(payload.itemId, pic, file);
         expanded.add(String(payload.itemId));
       } else if (mode === "end") {
         await p3EndInstance(payload.instanceId, pin, file);
@@ -1169,6 +1733,45 @@ export function renderP3(outlet) {
 
     if (t.id === "p3-help-open") {
       openP3GuideModal();
+      return;
+    }
+
+    if (t.id === "p3-export-excel") {
+      void (async () => {
+        syncFilterStateFromDom();
+        const st = statusEl();
+        try {
+          if (st) st.textContent = "Đang xuất Excel…";
+          const n = await p3ExportFilteredToExcel(
+            items,
+            filterState.f1,
+            filterState.v1,
+            filterState.f2,
+            filterState.v2,
+          );
+          updateStatusLine(
+            p3ApplyFiltersToItems(items, filterState.f1, filterState.v1, filterState.f2, filterState.v2),
+          );
+          const st2 = statusEl();
+          if (st2 && lastStatusMessage) {
+            const base = stripFilterSuffix(lastStatusMessage);
+            let hint = "";
+            if (p3FiltersEffectivelyOn(filterState.f1, filterState.v1, filterState.f2, filterState.v2)) {
+              const parts = [];
+              if (filterState.f1 && p3NeedleNorm(filterState.v1)) {
+                parts.push(`Lọc 1: ${p3FilterFieldLabel(filterState.f1)} chứa «${filterState.v1.trim()}»`);
+              }
+              if (filterState.f2 && p3NeedleNorm(filterState.v2)) {
+                parts.push(`Lọc 2: ${p3FilterFieldLabel(filterState.f2)} chứa «${filterState.v2.trim()}»`);
+              }
+              if (parts.length) hint = ` (${parts.join("; ")})`;
+            }
+            st2.textContent = `${base} — đã xuất ${n} dòng Excel${hint}.`;
+          }
+        } catch (e) {
+          if (st) st.textContent = String(e.message || e);
+        }
+      })();
       return;
     }
 
@@ -1220,6 +1823,7 @@ export function renderP3(outlet) {
     closeActionModal();
     closeP3GuideModal();
     closePicStatsModalAll();
+    closeP3DoneMonthModal();
     document.removeEventListener("click", onDocumentStatsClick);
     if (saveBtn) saveBtn.removeEventListener("click", submitAction);
   };
