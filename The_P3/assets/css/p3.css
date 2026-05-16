@@ -412,16 +412,22 @@
   overflow-wrap: break-word;
 }
 
+.p3-done-month-table .p3-done-month-count-col,
+.p3-done-month-table .p3-done-month-count-cell {
+  text-align: center;
+  width: 6.5rem;
+}
+
 /* Cột Công chuẩn (mới) + P3 trung bình — nền xanh nhạt */
-.p3-done-month-table thead th:nth-child(6),
 .p3-done-month-table thead th:nth-child(7),
-.p3-done-month-table tbody td:nth-child(6),
-.p3-done-month-table tbody td:nth-child(7) {
+.p3-done-month-table thead th:nth-child(8),
+.p3-done-month-table tbody td:nth-child(7),
+.p3-done-month-table tbody td:nth-child(8) {
   background: rgba(34, 197, 94, 0.1);
 }
 
-.p3-done-month-table thead th:nth-child(6),
-.p3-done-month-table thead th:nth-child(7) {
+.p3-done-month-table thead th:nth-child(7),
+.p3-done-month-table thead th:nth-child(8) {
   background: rgba(34, 197, 94, 0.2);
 }
 

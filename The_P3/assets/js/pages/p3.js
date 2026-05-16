@@ -646,12 +646,13 @@ function htmlP3DoneMonthTableRows(doneItems, ym) {
     const msg = p3DoneMonthFilterIsAll(ym)
       ? "Không có hạng mục có lượt done."
       : "Không có hạng mục có lượt done trong tháng này.";
-    return `<tr><td colspan="7" class="p3-sub-empty">${msg}</td></tr>`;
+    return `<tr><td colspan="8" class="p3-sub-empty">${msg}</td></tr>`;
   }
   const monthKey = esc(String(ym || ""));
   return doneItems
     .map((item) => {
       const itemId = esc(String(item.id ?? ""));
+      const doneCount = p3DoneInstancesForItemInMonth(item, ym).length;
       const congMoi = esc(fmtCongChuanMoiCell(item));
       const avg = fmtP3(item.p3Avg);
       const drillBtn = (label) =>
@@ -663,6 +664,7 @@ function htmlP3DoneMonthTableRows(doneItems, ym) {
         `<td class="p3-cell-long p3-col-hang-muc">${esc(item.hangMuc)}</td>` +
         `<td class="p3-cell-long p3-col-tieu-chuan">${esc(item.tieuChuan)}</td>` +
         `<td class="p3-col-cong-chuan-h0">${esc(item.congChuan)}</td>` +
+        `<td class="p3-stats-num-cell p3-done-month-count-cell" title="Số lượt done trong kỳ lọc">${esc(String(doneCount))}</td>` +
         `<td class="p3-nowrap p3-hdelta p3-col-cong-chuan-moi p3-done-month-drill-cell" title="Bấm xem chi tiết lượt done trong tháng">${drillBtn(congMoi)}</td>` +
         `<td class="p3-p3col p3-done-month-drill-cell" title="Bấm xem chi tiết lượt done trong tháng">${drillBtn(avg)}</td>` +
         "</tr>"
@@ -677,12 +679,14 @@ function p3BuildDoneMonthExportRows(allItems, ym) {
   const doneItems = p3ItemsWithDoneInMonth(allItems, ymUse);
   return doneItems.map((item) => {
     const congMoi = fmtCongChuanMoiCell(item);
+    const doneCount = p3DoneInstancesForItemInMonth(item, ymUse).length;
     return {
       "Mã CAT": String(item.maCat ?? ""),
       "Linh kiện": String(item.linhKien ?? ""),
       "Hạng mục kiểm tra": String(item.hangMuc ?? ""),
       "Tiêu chuẩn": String(item.tieuChuan ?? ""),
       "Công chuẩn (H0)": String(item.congChuan ?? ""),
+      "Tổng lượt done": doneCount,
       "Công chuẩn (mới)": congMoi === "—" ? "" : congMoi,
       "P3 trung bình": p3FmtP3Plain(item.p3Avg),
     };
@@ -1158,7 +1162,13 @@ function ensureP3StatsDetailModal() {
 
 function ensureP3DoneMonthModal() {
   let el = document.getElementById("p3-done-month-modal");
-  if (el && !el.querySelector("#p3-done-month-filter")) {
+  const titEl = el && el.querySelector("#p3-done-month-title");
+  if (
+    el &&
+    (!el.querySelector("#p3-done-month-filter") ||
+      !el.querySelector(".p3-done-month-count-col") ||
+      (titEl && titEl.textContent !== "Dữ liệu Công chuẩn mới"))
+  ) {
     el.remove();
     el = null;
   }
@@ -1174,7 +1184,7 @@ function ensureP3DoneMonthModal() {
     '<div class="p3-modal-bg" data-p3-done-month-close="1"></div>' +
     '<div class="p3-modal-card p3-stats-modal-card p3-done-month-modal-card">' +
     '<div class="p3-stats-modal-head">' +
-    '<h3 id="p3-done-month-title" class="p3-stats-modal-title">Bảng Done theo tháng</h3>' +
+    '<h3 id="p3-done-month-title" class="p3-stats-modal-title">Dữ liệu Công chuẩn mới</h3>' +
     '<div class="p3-done-month-head-actions">' +
     '<button type="button" class="p3-btn" id="p3-done-month-export-excel">Xuất Excel</button>' +
     '<button type="button" class="p3-btn p3-btn-end p3-stats-modal-close" data-p3-done-month-close="1">Đóng</button>' +
@@ -1188,7 +1198,7 @@ function ensureP3DoneMonthModal() {
     '<p class="p3-done-month-meta" id="p3-done-month-meta" aria-live="polite"></p>' +
     '<div class="p3-stats-scroll">' +
     '<table class="p3-table p3-stats-table p3-done-month-table">' +
-    "<thead><tr><th>Mã CAT</th><th class=\"p3-col-linh-kien\">Linh kiện</th><th class=\"p3-col-hang-muc\">Hạng mục kiểm tra</th><th class=\"p3-col-tieu-chuan\">Tiêu chuẩn</th><th class=\"p3-col-cong-chuan-h0\">Công chuẩn (H0)</th><th class=\"p3-col-cong-chuan-moi\">Công chuẩn (mới)</th><th>P3 trung bình</th></tr></thead>" +
+    "<thead><tr><th>Mã CAT</th><th class=\"p3-col-linh-kien\">Linh kiện</th><th class=\"p3-col-hang-muc\">Hạng mục kiểm tra</th><th class=\"p3-col-tieu-chuan\">Tiêu chuẩn</th><th class=\"p3-col-cong-chuan-h0\">Công chuẩn (H0)</th><th class=\"p3-done-month-count-col\">Tổng lượt done</th><th class=\"p3-col-cong-chuan-moi\">Công chuẩn (mới)</th><th>P3 trung bình</th></tr></thead>" +
     '<tbody id="p3-done-month-tbody"></tbody>' +
     "</table>" +
     "</div>" +
